@@ -309,6 +309,121 @@ void *intmap_after_(const struct intmap *map, intmap_index_t *indexp);
 	tcon_cast((smap), sintmap_canary,				\
 		  sintmap_after_(sintmap_unwrap_(smap), (indexp)))
 
+/**
+ * uintmap_last - get last value in an unsigned intmap
+ * @umap: the typed intmap to iterate through.
+ * @indexp: a pointer to store the index.
+ *
+ * Returns NULL if the map is empty, otherwise populates *@indexp and
+ * returns the highest entry.
+ */
+#define uintmap_last(umap, indexp)					\
+	tcon_cast((umap), uintmap_canary,				\
+		  intmap_last_(uintmap_unwrap_(umap), (indexp)))
+
+void *intmap_last_(const struct intmap *map, intmap_index_t *indexp);
+
+/**
+ * sintmap_last - get last value in a signed intmap
+ * @smap: the typed intmap to iterate through.
+ * @indexp: a pointer to store the index.
+ *
+ * Returns NULL if the map is empty, otherwise populates *@indexp and
+ * returns the highest entry.
+ */
+#define sintmap_last(smap, indexp)					\
+	tcon_cast((smap), sintmap_canary,				\
+		  sintmap_last_(sintmap_unwrap_(smap), (indexp)))
+
+/**
+ * uintmap_iterate - ordered iteration over an unsigned intmap
+ * @umap: the typed intmap to iterate through.
+ * @handle: the function to call.
+ * @arg: the argument for the function (types should match).
+ *
+ * @handle's prototype should be:
+ *	bool @handle(intmap_index_t index, type value, typeof(arg) arg)
+ *
+ * If @handle returns false, the iteration will stop and uintmap_iterate will
+ * return false, otherwise uintmap_iterate will return true.
+ * You should not alter the map within the @handle function!
+ *
+ * Example:
+ *	typedef UINTMAP(int *) umap_intp;
+ *	static bool dump_some(intmap_index_t index, int *value, int *num)
+ *	{
+ *		// Only dump out num nodes.
+ *		if (*(num--) == 0)
+ *			return false;
+ *		printf("%lu=>%i\n", (unsigned long)index, *value);
+ *		return true;
+ *	}
+ *
+ *	static void dump_map(const umap_intp *map)
+ *	{
+ *		int max = 100;
+ *		uintmap_iterate(map, dump_some, &max);
+ *		if (max < 0)
+ *			printf("... (truncated to 100 entries)\n");
+ *	}
+ */
+#define uintmap_iterate(map, handle, arg)				\
+	intmap_iterate_(tcon_unwrap(map),				\
+			typesafe_cb_cast(bool (*)(intmap_index_t,	\
+						  void *, void *),	\
+					 bool (*)(intmap_index_t,	\
+						  tcon_type((map),	\
+							    uintmap_canary), \
+						  __typeof__(arg)), (handle)), \
+			(arg), 0)
+
+/**
+ * sintmap_iterate - ordered iteration over a signed intmap
+ * @smap: the typed intmap to iterate through.
+ * @handle: the function to call.
+ * @arg: the argument for the function (types should match).
+ *
+ * @handle's prototype should be:
+ *	bool @handle(sintmap_index_t index, type value, typeof(arg) arg)
+ *
+ * If @handle returns false, the iteration will stop and sintmap_iterate will
+ * return false, otherwise sintmap_iterate will return true.
+ * You should not alter the map within the @handle function!
+ *
+ * Example:
+ *	typedef SINTMAP(int *) smap_intp;
+ *	static bool dump_some(sintmap_index_t index, int *value, int *num)
+ *	{
+ *		// Only dump out num nodes.
+ *		if (*(num--) == 0)
+ *			return false;
+ *		printf("%li=>%i\n", (long)index, *value);
+ *		return true;
+ *	}
+ *
+ *	static void dump_map(const smap_intp *map)
+ *	{
+ *		int max = 100;
+ *		sintmap_iterate(map, dump_some, &max);
+ *		if (max < 0)
+ *			printf("... (truncated to 100 entries)\n");
+ *	}
+ */
+#define sintmap_iterate(map, handle, arg)				\
+	intmap_iterate_(tcon_unwrap(map),				\
+			typesafe_cb_cast(bool (*)(intmap_index_t,	\
+						  void *, void *),	\
+					 bool (*)(sintmap_index_t,	\
+						  tcon_type((map),	\
+							    sintmap_canary), \
+						  __typeof__(arg)), (handle)), \
+			(arg), SINTMAP_OFFSET)
+
+bool intmap_iterate_(const struct intmap *map,
+		     bool (*handle)(intmap_index_t, void *, void *),
+		     void *data,
+		     intmap_index_t offset);
+
 /* TODO: We could implement intmap_prefix. */
 
 /* These make sure it really is a uintmap/sintmap */
@@ -338,5 +453,15 @@ static inline void *sintmap_after_(const struct intmap *map,
 	void *ret = intmap_after_(map, &i);
 	*indexp = SINTMAP_UNOFF(i);
 	return ret;
+}
+
+static inline void *sintmap_last_(const struct intmap *map,
+				  sintmap_index_t *indexp)
+{
+	intmap_index_t i;
+	void *ret = intmap_last_(map, &i);
+	*indexp = SINTMAP_UNOFF(i);
+	return ret;
+
 }
 #endif /* CCAN_INTMAP_H */
